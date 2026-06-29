@@ -18,6 +18,18 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const { t, language, isRtl } = useTranslation();
 
+  const getInputClass = (withSuffix = false) => {
+    return `w-full bg-white/5 border border-white/10 rounded-xl py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-sm transition-all ${
+      isRtl
+        ? withSuffix
+          ? 'pr-10 pl-10 text-right'
+          : 'pr-10 pl-4 text-right'
+        : withSuffix
+        ? 'pl-10 pr-10 text-left'
+        : 'pl-10 pr-4 text-left'
+    }`;
+  };
+
   const schema = z.object({
     firstName: z.string().min(2, language === 'ar' ? 'الاسم الأول مطلوب' : language === 'en' ? 'First name is required' : 'Le prénom est requis'),
     lastName: z.string().min(2, language === 'ar' ? 'الاسم الأخير مطلوب' : language === 'en' ? 'Last name is required' : 'Le nom de famille est requis'),
@@ -97,19 +109,19 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <FormField label={t('auth.register.firstName')} icon={<User className="w-4 h-4" />} error={errors.firstName?.message} isRtl={isRtl}>
-                <input {...register('firstName')} id="reg-firstname" placeholder="Jean" className="form-input" />
+                <input {...register('firstName')} id="reg-firstname" placeholder="Jean" className={getInputClass(false)} />
               </FormField>
               <FormField label={t('auth.register.lastName')} icon={<User className="w-4 h-4" />} error={errors.lastName?.message} isRtl={isRtl}>
-                <input {...register('lastName')} id="reg-lastname" placeholder="Dupont" className="form-input" />
+                <input {...register('lastName')} id="reg-lastname" placeholder="Dupont" className={getInputClass(false)} />
               </FormField>
             </div>
 
             <FormField label={t('auth.register.email')} icon={<Mail className="w-4 h-4" />} error={errors.email?.message} isRtl={isRtl}>
-              <input {...register('email')} id="reg-email" type="email" placeholder="vous@exemple.com" className="form-input" />
+              <input {...register('email')} id="reg-email" type="email" placeholder="vous@exemple.com" className={getInputClass(false)} />
             </FormField>
 
             <FormField label={t('auth.register.phone')} icon={<Phone className="w-4 h-4" />} isRtl={isRtl}>
-              <input {...register('phone')} id="reg-phone" placeholder="+212 6XX XXX XXX" className="form-input" />
+              <input {...register('phone')} id="reg-phone" placeholder="+212 6XX XXX XXX" className={getInputClass(false)} />
             </FormField>
 
             <div className={isRtl ? 'text-right' : 'text-left'}>
@@ -126,11 +138,11 @@ export default function RegisterPage() {
                 {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             }>
-              <input {...register('password')} id="reg-password" type={showPass ? 'text' : 'password'} placeholder="••••••••" className="form-input" />
+              <input {...register('password')} id="reg-password" type={showPass ? 'text' : 'password'} placeholder="••••••••" className={getInputClass(true)} />
             </FormField>
 
             <FormField label={t('auth.register.confirmPassword')} icon={<Lock className="w-4 h-4" />} error={errors.confirmPassword?.message} isRtl={isRtl}>
-              <input {...register('confirmPassword')} id="reg-confirm-password" type="password" placeholder="••••••••" className="form-input" />
+              <input {...register('confirmPassword')} id="reg-confirm-password" type="password" placeholder="••••••••" className={getInputClass(false)} />
             </FormField>
 
             <button
@@ -150,26 +162,6 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
-
-      <style jsx>{`
-        .form-input {
-          width: 100%;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 12px;
-          padding: ${isRtl ? '12px 40px 12px 16px' : '12px 16px 12px 40px'};
-          text-align: ${isRtl ? 'right' : 'left'};
-          color: white;
-          font-size: 14px;
-          outline: none;
-          transition: all 0.2s;
-        }
-        .form-input:focus { 
-          box-shadow: 0 0 0 2px rgba(59,130,246,0.5);
-          border-color: rgba(59,130,246,0.5);
-        }
-        .form-input::placeholder { color: rgb(100, 116, 139); }
-      `}</style>
     </div>
   );
 }
