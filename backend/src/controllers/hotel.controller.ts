@@ -125,9 +125,10 @@ export const updateHotel = async (req: AuthRequest, res: Response): Promise<void
       res.status(403).json({ error: 'Not authorized to edit this hotel' }); return;
     }
 
-    const { name, city, address, stars, description, imageUrl, amenities } = req.body;
+    const { name, city, address, stars, description, imageUrl, amenities, managerId } = req.body;
 
     const parsedStars = stars !== undefined ? parseInt(stars, 10) : undefined;
+    const isAdmin = req.user?.role === 'ADMIN';
 
     const updated = await prisma.hotel.update({
       where: { id },
@@ -139,6 +140,7 @@ export const updateHotel = async (req: AuthRequest, res: Response): Promise<void
         description,
         imageUrl,
         amenities: amenities ? JSON.stringify(amenities) : undefined,
+        ...(isAdmin && { managerId: managerId || null }),
       },
     });
     res.json(updated);

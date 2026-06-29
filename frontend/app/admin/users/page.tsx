@@ -235,10 +235,10 @@ export default function AdminUsersPage() {
             </div>
             <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
               id="user-role-filter"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900">
-              <option value="" className="bg-slate-850">{allRolesLabel[language]}</option>
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900 cursor-pointer">
+              <option value="" className="text-slate-900 bg-white">{allRolesLabel[language]}</option>
               {['CLIENT', 'HOTEL_MANAGER', 'FLIGHT_MANAGER', 'ADMIN'].map(r => (
-                <option key={r} value={r} className="bg-slate-850">{roleLabels[r]}</option>
+                <option key={r} value={r} className="text-slate-900 bg-white">{roleLabels[r]}</option>
               ))}
             </select>
           </div>
@@ -372,9 +372,9 @@ export default function AdminUsersPage() {
               <div className={isRtl ? 'text-right' : 'text-left'}>
                 <label className="text-xs text-slate-400 block mb-1">{language === 'ar' ? 'الصلاحية' : 'Role'}</label>
                 <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
-                  id="modal-role" className={`w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900`}>
+                  id="modal-role" className={`w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900 cursor-pointer`}>
                   {['CLIENT', 'HOTEL_MANAGER', 'FLIGHT_MANAGER', 'ADMIN'].map(r => (
-                    <option key={r} value={r} className="bg-slate-850">{roleLabels[r]}</option>
+                    <option key={r} value={r} className="text-slate-900 bg-white">{roleLabels[r]}</option>
                   ))}
                 </select>
               </div>

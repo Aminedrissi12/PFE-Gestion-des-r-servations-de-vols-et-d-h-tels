@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from '@/context/LanguageContext';
 import { Hotel as HotelIcon, Plus, Edit2, Trash2, Search, Loader2, X, Star, MapPin, DoorOpen } from 'lucide-react';
 
-const defaultForm = { name: '', city: '', address: '', stars: '4', description: '', imageUrl: '', amenities: '' };
+const defaultForm = { name: '', city: '', address: '', stars: '4', description: '', imageUrl: '', amenities: '', managerId: '' };
 
 export default function AdminHotelsPage() {
   const { user, isAuthenticated } = useAuthStore();
@@ -48,6 +48,12 @@ export default function AdminHotelsPage() {
     queryKey: ['admin-hotels', search],
     queryFn: () => api.get(`/hotels?city=${search}&limit=50&all=true`).then(r => r.data),
     enabled: isAuthenticated,
+  });
+
+  const { data: managers } = useQuery({
+    queryKey: ['admin-hotel-managers'],
+    queryFn: () => api.get('/users?role=HOTEL_MANAGER&limit=100').then(r => r.data.data),
+    enabled: isAuthenticated && user?.role === 'ADMIN',
   });
 
   const createHotel = useMutation({
@@ -120,6 +126,7 @@ export default function AdminHotelsPage() {
       ...form,
       stars: parseInt(form.stars),
       amenities: form.amenities ? form.amenities.split(',').map(s => s.trim()) : [],
+      managerId: form.managerId || null,
     };
     if (modal === 'create') createHotel.mutate(payload);
     else if (modal === 'edit' && editId) updateHotel.mutate({ id: editId, data: payload });
@@ -331,7 +338,7 @@ export default function AdminHotelsPage() {
                             <button onClick={() => {
                               setEditId(h.id);
                               const amen = h.amenities ? JSON.parse(h.amenities).join(', ') : '';
-                              setForm({ name: h.name, city: h.city, address: h.address, stars: String(h.stars), description: h.description || '', imageUrl: h.imageUrl || '', amenities: amen });
+                              setForm({ name: h.name, city: h.city, address: h.address, stars: String(h.stars), description: h.description || '', imageUrl: h.imageUrl || '', amenities: amen, managerId: h.managerId || '' });
                               setModal('edit');
                             }} id={`edit-hotel-${h.id}`} className="w-8 h-8 rounded-lg glass flex items-center justify-center text-slate-400 hover:text-blue-400 transition-colors">
                               <Edit2 className="w-3.5 h-3.5" />
@@ -394,8 +401,8 @@ export default function AdminHotelsPage() {
                 <div className={isRtl ? 'text-right' : 'text-left'}>
                   <label className="text-xs text-slate-400 block mb-1">{t('hotels.filters.stars')}</label>
                   <select value={form.stars} onChange={e => setForm({ ...form, stars: e.target.value })} id="modal-hotel-stars"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900">
-                    {[5, 4, 3, 2, 1].map(s => <option key={s} value={s} className="bg-slate-850">{'★'.repeat(s)}</option>)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900 cursor-pointer">
+                    {[5, 4, 3, 2, 1].map(s => <option key={s} value={s} className="text-slate-900 bg-white">{'★'.repeat(s)}</option>)}
                   </select>
                 </div>
               </div>
@@ -413,6 +420,26 @@ export default function AdminHotelsPage() {
                 <label className="text-xs text-slate-400 block mb-1">{amenitiesLabel[language]}</label>
                 <input value={form.amenities} onChange={e => setForm({ ...form, amenities: e.target.value })} id="modal-hotel-amenities"
                   placeholder="WiFi, Pool, Spa, Restaurant" className={`w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none ${isRtl ? 'text-right' : 'text-left'}`} />
+              </div>
+              <div className={isRtl ? 'text-right' : 'text-left'}>
+                <label className="text-xs text-slate-400 block mb-1">
+                  {language === 'ar' ? 'المدير المسؤول' : language === 'en' ? 'Assigned Manager' : 'Gestionnaire assigné'}
+                </label>
+                <select
+                  value={form.managerId}
+                  onChange={e => setForm({ ...form, managerId: e.target.value })}
+                  id="modal-hotel-manager"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none bg-slate-900 cursor-pointer"
+                >
+                  <option value="" className="text-slate-900 bg-white">
+                    {language === 'ar' ? 'بدون مدير (إدارة عامة)' : language === 'en' ? 'No manager (unassigned)' : 'Aucun gestionnaire (non assigné)'}
+                  </option>
+                  {managers?.filter((m: any) => m.role === 'HOTEL_MANAGER').map((m: any) => (
+                    <option key={m.id} value={m.id} className="text-slate-900 bg-white">
+                      {m.firstName} {m.lastName} ({m.email})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={isRtl ? 'text-right' : 'text-left'}>
                 <label className="text-xs text-slate-400 block mb-1">Description</label>

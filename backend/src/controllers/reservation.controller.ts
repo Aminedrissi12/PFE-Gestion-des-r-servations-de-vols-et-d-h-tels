@@ -251,3 +251,186 @@ export const getAllReservations = async (req: AuthRequest, res: Response): Promi
     res.status(500).json({ error: 'Failed to fetch reservations' });
   }
 };
+
+export const updateHotelReservationStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = getId(req.params.id);
+    const { status } = req.body;
+
+    if (!['PENDING', 'CONFIRMED', 'CANCELLED'].includes(status)) {
+      res.status(400).json({ error: 'Invalid reservation status' });
+      return;
+    }
+
+    const reservation = await prisma.hotelReservation.findUnique({
+      where: { id },
+      include: { hotel: true },
+    });
+
+    if (!reservation) {
+      res.status(404).json({ error: 'Reservation not found' });
+      return;
+    }
+
+    const isAdmin = req.user!.role === 'ADMIN';
+    const isHotelManager = req.user!.role === 'HOTEL_MANAGER' && reservation.hotel.managerId === req.user!.id;
+
+    if (!isAdmin && !isHotelManager) {
+      res.status(403).json({ error: 'Not authorized to manage this hotel' });
+      return;
+    }
+
+    const updated = await prisma.hotelReservation.update({
+      where: { id },
+      data: { status },
+      include: { user: { select: { firstName: true, lastName: true, email: true } }, room: true, hotel: true },
+    });
+
+    await createNotification(
+      reservation.userId,
+      'Reservation Updated',
+      `Your reservation status at ${reservation.hotel.name} has been updated to ${status}.`,
+      'INFO'
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('updateHotelReservationStatus error:', error);
+    res.status(500).json({ error: 'Failed to update reservation status' });
+  }
+};
+
+export const updateHotelReservationPaymentStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = getId(req.params.id);
+    const { paymentStatus } = req.body;
+
+    if (!['PENDING', 'PAID', 'REFUNDED', 'FAILED'].includes(paymentStatus)) {
+      res.status(400).json({ error: 'Invalid payment status' });
+      return;
+    }
+
+    const reservation = await prisma.hotelReservation.findUnique({
+      where: { id },
+      include: { hotel: true, payment: true },
+    });
+
+    if (!reservation) {
+      res.status(404).json({ error: 'Reservation not found' });
+      return;
+    }
+
+    const isAdmin = req.user!.role === 'ADMIN';
+    const isHotelManager = req.user!.role === 'HOTEL_MANAGER' && reservation.hotel.managerId === req.user!.id;
+
+    if (!isAdmin && !isHotelManager) {
+      res.status(403).json({ error: 'Not authorized to manage this hotel' });
+      return;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (reservation.payment) {
+        await tx.payment.update({
+          where: { id: reservation.payment.id },
+          data: { status: paymentStatus },
+        });
+      } else if (paymentStatus === 'PAID') {
+        await tx.payment.create({
+          data: {
+            amount: reservation.totalPrice,
+            method: 'CASH',
+            status: 'PAID',
+            transactionId: `cash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            hotelReservationId: reservation.id,
+          },
+        });
+      }
+
+      return tx.hotelReservation.update({
+        where: { id },
+        data: { paymentStatus },
+        include: { user: { select: { firstName: true, lastName: true, email: true } }, room: true, hotel: true, payment: true },
+      });
+    });
+
+    await createNotification(
+      reservation.userId,
+      'Payment Status Updated',
+      `Your payment status at ${reservation.hotel.name} has been updated to ${paymentStatus}.`,
+      'SUCCESS'
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('updateHotelReservationPaymentStatus error:', error);
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
+};
+
+export const updateFlightReservationPaymentStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = getId(req.params.id);
+    const { paymentStatus } = req.body;
+
+    if (!['PENDING', 'PAID', 'REFUNDED', 'FAILED'].includes(paymentStatus)) {
+      res.status(400).json({ error: 'Invalid payment status' });
+      return;
+    }
+
+    const reservation = await prisma.flightReservation.findUnique({
+      where: { id },
+      include: { flight: { include: { airline: { include: { managers: { select: { id: true } } } } } }, payment: true },
+    });
+
+    if (!reservation) {
+      res.status(404).json({ error: 'Reservation not found' });
+      return;
+    }
+
+    const isAdmin = req.user!.role === 'ADMIN';
+    const isFlightManager = req.user!.role === 'FLIGHT_MANAGER' &&
+      reservation.flight.airline.managers.some((m: any) => m.id === req.user!.id);
+
+    if (!isAdmin && !isFlightManager) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (reservation.payment) {
+        await tx.payment.update({
+          where: { id: reservation.payment.id },
+          data: { status: paymentStatus },
+        });
+      } else if (paymentStatus === 'PAID') {
+        await tx.payment.create({
+          data: {
+            amount: reservation.totalPrice,
+            method: 'CASH',
+            status: 'PAID',
+            transactionId: `flight-cash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            flightReservationId: reservation.id,
+          },
+        });
+      }
+
+      return tx.flightReservation.update({
+        where: { id },
+        data: { paymentStatus, status: paymentStatus === 'PAID' ? 'CONFIRMED' : reservation.status },
+        include: { user: { select: { firstName: true, lastName: true, email: true } }, flight: { include: { airline: true } }, payment: true },
+      });
+    });
+
+    await createNotification(
+      reservation.userId,
+      'Flight Payment Status Updated',
+      `Your payment status for flight ${reservation.flight.flightNumber} has been updated to ${paymentStatus}.`,
+      'SUCCESS'
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('updateFlightReservationPaymentStatus error:', error);
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
+};

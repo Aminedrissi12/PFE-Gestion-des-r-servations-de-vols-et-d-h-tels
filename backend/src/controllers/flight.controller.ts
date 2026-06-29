@@ -161,3 +161,31 @@ export const deleteFlight = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({ error: 'Failed to delete flight' });
   }
 };
+
+export const getMyFlights = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { page = '1', limit = '50' } = req.query as Record<string, string>;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const where: any = {};
+    if (req.user?.role === 'FLIGHT_MANAGER') {
+      where.airline = { managers: { some: { id: req.user.id } } };
+    }
+
+    const [flights, total] = await Promise.all([
+      prisma.flight.findMany({
+        where,
+        include: { airline: { select: { id: true, name: true, logoUrl: true, iataCode: true } } },
+        orderBy: { departureTime: 'asc' },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.flight.count({ where }),
+    ]);
+
+    res.json({ data: flights, total });
+  } catch (err) {
+    console.error('getMyFlights error:', err);
+    res.status(500).json({ error: 'Failed to fetch manager flights' });
+  }
+};

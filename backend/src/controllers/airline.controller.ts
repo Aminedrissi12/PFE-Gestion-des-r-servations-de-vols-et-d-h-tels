@@ -86,3 +86,22 @@ export const assignManagerToAirline = async (req: Request, res: Response): Promi
     res.status(500).json({ error: 'Failed to assign manager' });
   }
 };
+
+export const getMyAirlines = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const where: any = {};
+    if (req.user?.role === 'FLIGHT_MANAGER') {
+      where.managers = { some: { id: req.user.id } };
+    }
+
+    const airlines = await prisma.airlineCompany.findMany({
+      where,
+      include: { _count: { select: { flights: true } } },
+      orderBy: { name: 'asc' },
+    });
+    res.json(airlines);
+  } catch (error) {
+    console.error('getMyAirlines error:', error);
+    res.status(500).json({ error: 'Failed to fetch your airlines' });
+  }
+};
